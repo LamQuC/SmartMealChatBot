@@ -1,0 +1,32 @@
+from typing import TypedDict, List, Optional, Annotated
+import operator
+from langgraph.graph.message import add_messages
+
+class UserProfile(TypedDict):
+    """Thông tin cố định từ Form UI"""
+    full_name: Optional[str]
+    budget: float
+    persons: int
+    preferences: List[str]
+    allergies: List[str]
+    pantry_items: List[str]  # Gia vị/đồ dùng sẵn có (Muối, mắm...)
+
+class AgentState(TypedDict):
+    messages: Annotated[list, add_messages]
+    user_input: str
+    
+    # 1. Dữ liệu từ Database nạp vào
+    user_profile: UserProfile
+    recent_meals: List[List[str]]  # Lịch sử 7 bữa đã CHỐT
+    current_session: Optional[dict] # Bữa ăn đang thảo luận trong 12h
+    
+    # 2. Input từ logic xử lý
+    user_owned_ingredients: List[str] # Đồ user vừa báo "nhà còn"
+    
+    # 3. Kết quả output
+    current_intent: str
+    meal_plan: List[str]
+    raw_ingredients: List[str]
+    matched_products: List[dict]
+    total_cost: float
+    final_response: str

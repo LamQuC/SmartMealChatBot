@@ -1,0 +1,20 @@
+from src.llm.llm_client import LLMClient
+from src.agents.base_agent import BaseAgent
+class GeneralAgent(BaseAgent):
+    def run(self, user_input: str, user_info: dict = None):
+        # Lọc các thông tin liên quan đến sức khỏe/mua sắm để làm context
+        context = {k: v for k, v in (user_info or {}).items() if v and k in ["budget", "preferences", "allergies"]}
+
+        prompt = f"""
+ROLE: Bạn là chuyên gia tư vấn mua sắm WinMart & Dinh dưỡng.
+CONTEXT: {context}
+
+TASK: Trả lời yêu cầu của người dùng về sản phẩm, sức khỏe hoặc nấu ăn. 
+LƯU Ý: 
+- Nếu câu hỏi không liên quan đến WinMart/Nấu ăn/Sức khỏe, hãy từ chối lịch sự.
+- Câu trả lời ngắn gọn, tập trung vào giải pháp.
+
+USER REQUEST: {user_input}
+OUTPUT: Plain text.
+"""
+        return self.llm(prompt)

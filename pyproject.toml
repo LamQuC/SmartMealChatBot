@@ -1,0 +1,25 @@
+[project]
+name = "smartmeal-chatbot"
+version = "0.1.0"
+description = "Smart meal planning and product search chatbot powered by Gemini LLM and local product knowledge."
+authors = [ { name = "Your Name", email = "you@example.com" } ]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["chatbot", "meal-planner", "winmart", "generative-ai", "llm"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.dependencies]
+python-dotenv = "*"
+google-generativeai = "*"
+pymongo = "*"
+numpy = "*"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = ["test", "scripts"]
