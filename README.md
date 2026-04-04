@@ -297,7 +297,7 @@ llm:
 
 - **Author**: Lâm 
 - **Email**: vlam711003@gmail.com
-- **GitHub**: [[repository-url]](https://github.com/LamQuC/SmartMealChatBot)]
+- **GitHub**: [https://github.com/LamQuC/SmartMealChatBot]
 
 ---
 
