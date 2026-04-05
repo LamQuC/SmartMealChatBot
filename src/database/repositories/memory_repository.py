@@ -35,7 +35,7 @@ class MemoryRepository:
                 "user_id": user_id,
                 "user_profile": {
                     "full_name": None, "budget": 200000, "persons": 2, 
-                    "preferences": [], "allergies": [], "pantry_items": ["Muối", "Nước mắm"]
+                    "preferences": [], "allergies": [], "pantry_items": ["Nước mắm"]
                 },
                 "recent_meals": [],
                 "current_session": None,

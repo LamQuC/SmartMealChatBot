@@ -158,7 +158,7 @@ with st.sidebar:
             default=[x for x in (prof.get("pantry_items") or []) if x in pantry_opts],
         )
 
-        if st.form_submit_button("💾 Lưu hồ sơ vào MongoDB", use_container_width=True):
+        if st.form_submit_button("💾 Lưu hồ sơ", use_container_width=True):
             allergies = [a.strip() for a in allergies_str.split(",") if a.strip()]
             updated_profile = {
                 "full_name": name,
