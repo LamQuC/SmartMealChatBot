@@ -51,15 +51,26 @@ Bạn là Chuyên gia ẩm thực kỹ thuật số của WinMart. Bạn lập t
 {session_context}
 
 ### QUY TẮC LÊN THỰC ĐƠN
-1. Thực đơn luôn gồm 3 món: 1 món mặn (protein), 1 món xào/rau, 1 món canh.
-2. KHÔNG liệt kê gia vị đã có trong Pantry vào danh sách 'ingredients'.
-3. Nếu user báo đã có sẵn nguyên liệu (ví dụ: "có trứng"), bạn vẫn có thể lên món trứng nhưng KHÔNG được đưa "Trứng" vào danh sách 'ingredients' (vì không cần mua).
+1. Thực đơn luôn gồm 3 món: 1 món mặn (protein), 1 món xào/rau, 1 món canh (tuỳ số người nhưng đủ 3 loại).
+2. Với TỪNG món: viết **công thức các bước nấu** rõ ràng (ước lượng theo số người trong hồ sơ).
+3. **Ngân sách & giỏ hàng chỉ tính nguyên liệu chính** (thịt, cá, rau, củ, đậu, trứng...). 
+   **KHÔNG** tính tiền mua gia vị (mắm, muối, đường, dầu, nước mắm...).
+4. Gia vị: mỗi món có trường `spices_note` — mô tả gia vị cần có và lượng ước chừng để đúng với công thức (ghi chú, không tính vào giỏ tiền).
+5. 'ingredients': CHỈ nguyên liệu chính cần **MUA** tại siêu thị (không gồm gia vị; không gồm thứ user đã có sẵn / đã nêu trong Pantry hoặc owned_items).
 
 ### ĐỊNH DẠNG ĐẦU RA (BẮT BUỘC JSON)
 {{
-  "dishes": ["Tên món 1", "Tên món 2", "Tên món 3"],
-  "ingredients": ["Nguyên liệu chính 1", "Nguyên liệu chính 2"]
+  "dishes": [
+    {{
+      "name": "Tên món",
+      "recipe": "Bước 1: ...\\nBước 2: ...",
+      "spices_note": "Gia vị cần có: nước mắm, đường, tiêu, dầu ăn (ước lượng cho X người)"
+    }}
+  ],
+  "ingredients": ["Chỉ nguyên liệu chính cần mua 1", "..."],
+  "spices": []
 }}
+(Lưu ý: giữ mảng "spices" rỗng [] hoặc bỏ qua; ưu tiên spices_note trong từng món.)
 
 ### TRẢ LỜI (CHỈ JSON):
 """
@@ -69,16 +80,34 @@ Bạn là Chuyên gia ẩm thực kỹ thuật số của WinMart. Bạn lập t
             # Làm sạch dữ liệu rác từ LLM
             clean_response = raw_response.strip().replace("```json", "").replace("```", "")
             result = json.loads(clean_response)
-            
+            if "spices" not in result:
+                result["spices"] = []
             logger.info(f"[MealPlannerAgent] Thực đơn: {result.get('dishes')}")
             return result
 
         except Exception as e:
             logger.error(f"Lỗi MealPlanner: {str(e)}")
             # Fallback nếu LLM lỗi hoặc JSON lỗi
-            if current and current.get('dishes'):
-                return {"dishes": current['dishes'], "ingredients": []}
+            if current and current.get("dishes"):
+                return {"dishes": current["dishes"], "ingredients": [], "spices": []}
             return {
-                "dishes": ["Thịt lợn luộc", "Rau muống xào tỏi", "Canh rau muống"], 
-                "ingredients": ["Thịt ba chỉ", "Rau muống", "Tỏi"]
+                "dishes": [
+                    {
+                        "name": "Thịt kho tàu",
+                        "recipe": "Bước 1: Ướp thịt với nước mắm, đường. Bước 2: Kho nhỏ lửa đến khi mềm.",
+                        "spices_note": "Gia vị cần có: nước mắm, đường, tiêu, dầu ăn (không tính vào ngân sách mua sắm).",
+                    },
+                    {
+                        "name": "Rau muống xào tỏi",
+                        "recipe": "Bước 1: Phi tỏi. Bước 2: Xào rau trên lửa lớn.",
+                        "spices_note": "Gia vị: tỏi, nước mắm, dầu ăn.",
+                    },
+                    {
+                        "name": "Canh rau muống",
+                        "recipe": "Đun sôi nước, cho rau vào, nêm vừa ăn.",
+                        "spices_note": "Gia vị: muối, hạt nêm (nếu có).",
+                    },
+                ],
+                "ingredients": ["Thịt ba chỉ", "Rau muống"],
+                "spices": [],
             }

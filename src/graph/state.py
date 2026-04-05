@@ -27,7 +27,8 @@ class AgentState(TypedDict):
     
     # 3. Kết quả output
     current_intent: str
-    meal_plan: List[str]
+    # Mỗi phần tử: {"name", "recipe", "spices_note"} hoặc chuỗi tên món (tương thích cũ)
+    meal_plan: List
     raw_ingredients: List[str]
     matched_products: List[dict]
     total_cost: float
