@@ -6,8 +6,6 @@ Một ứng dụng chatbot AI thông minh để lập kế hoạch bữa ăn và
 ![Demo](demo/shopcheck.png)
 ### User's Infor
 ![Demo](demo/infor.png)
-### Recommended Meal
-![Demo](demo/recomeal.png)
 ## ✨ Tính Năng Chính
 
 - 🤖 **Chatbot Thông Minh**: Tương tác tự nhiên qua Gemini LLM
