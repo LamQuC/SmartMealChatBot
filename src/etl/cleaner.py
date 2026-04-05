@@ -3,7 +3,8 @@ from src.etl.category_mapper import normalize_category
 
 def clean_product(raw: dict) -> dict:
     final_price = raw.get("salePrice") or raw.get("price")
-
+    images = raw.get("images", [])
+    image_url = images[0] if isinstance(images, list) and len(images) > 0 else "" 
     return {
         "product_id": raw.get("id"),
         "item_no": raw.get("itemNo"),
@@ -23,5 +24,6 @@ def clean_product(raw: dict) -> dict:
         "attributes": raw.get("attributes") or {},
         "created_at": datetime.utcnow(),
         "main_category": normalize_category(raw.get("main_category")),
+        "image_url": image_url
     }
     

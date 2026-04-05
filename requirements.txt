@@ -20,3 +20,6 @@ loguru>=0.7.0
 
 
 pytest>=8.0.0
+torchvision>=0.15.0
+sentence-transformers>=2.2.0
+beautifulsoup4>=4.12.0

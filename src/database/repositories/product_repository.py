@@ -3,11 +3,9 @@ import logging
 
 class ProductRepository:
     def __init__(self, db):
-        # db là đối tượng database lấy từ get_mongo_client()
         self.collection = db["products"]
 
     def upsert_many(self, products):
-        """Sử dụng bulk_write để update hoặc insert hàng loạt dựa trên item_no."""
         operations = [
             UpdateOne(
                 {"item_no": p["item_no"]}, 
@@ -22,33 +20,38 @@ class ProductRepository:
     def find_by_name(self, name):
         return self.collection.find_one({"name": name})
 
-    def get_unique_categories(self): # <--- Đã thêm 'self' vào đây
-        """
-        Truy vấn danh sách Gia vị duy nhất từ category_level_5.
-        Điều kiện: main_category == "Gia vị"
-        """
+    def get_unique_categories(self):
         try:
-            # 1. Định nghĩa điều kiện lọc
             query_filter = {
                 "main_category": "Gia vị",
                 "category_level_5": {"$ne": None, "$ne": ""}
             }
-            
-            # 2. Sử dụng distinct thông qua self.collection
             categories = self.collection.distinct("category_level_5", query_filter)
-            
-            # 3. Làm sạch dữ liệu đầu ra
             clean_categories = sorted([str(c).strip() for c in categories if c])
-            
             return clean_categories
-        
         except Exception as e:
             logging.error(f"❌ Lỗi truy vấn MongoDB: {e}")
-            # Trả về danh sách mặc định để UI không crash
             return ["Nước mắm", "Nước tương", "Dầu ăn", "Muối", "Đường", "Hạt nêm"]
-    def find_cheaper_alternative(self, category_level_5, current_price):
-        """Tìm sản phẩm cùng loại nhưng giá thấp hơn giá hiện tại"""
-        return self.collection.find_one({
+
+    def find_cheaper_alternative(self, category_level_5, current_price, original_name=""):
+        """
+        Tìm sản phẩm cùng loại nhưng giá thấp hơn.
+        SỬA TẠI ĐÂY: Thêm lọc theo tên để tránh đổi Thịt thành Cháo gói.
+        """
+        # 1. Tách từ khóa quan trọng nhất từ tên gốc (ví dụ: "Thịt", "Trứng", "Cần tây")
+        # Đơn giản nhất là lấy từ đầu tiên hoặc từ quan trọng
+        keyword = original_name.split()[0] if original_name else ""
+
+        query = {
             "category_level_5": category_level_5,
             "price_final": {"$lt": current_price}
-        }, sort=[("price_final", 1)])
+        }
+        
+        
+        if keyword:
+            query["name"] = {"$regex": keyword, "$options": "i"}
+
+        return self.collection.find_one(
+            query, 
+            sort=[("price_final", 1)]
+        )

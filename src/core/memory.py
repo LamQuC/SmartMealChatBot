@@ -33,8 +33,7 @@ class MemoryService:
     # --- Các hàm bổ trợ (Dùng khi cần update lẻ tẻ bên ngoài Graph) ---
 
     def update_personal_info(self, user_id: str, updates: dict):
-        # Giữ nguyên logic của bạn nhưng gom vào key 'personal_info' 
-        # hoặc map trực tiếp vào root tùy theo cấu trúc state.py của bạn
+
         current = self.get(user_id)
         new_data = {**current, **updates}
         return self.repo.upsert_user_profile(user_id, new_data)
@@ -42,7 +41,7 @@ class MemoryService:
     def add_recent_meal(self, user_id: str, meal_summary: list, max_len: int = 7):
         current = self.get(user_id)
         recent = list(current.get("recent_meals", []))
-        # Thêm vào cuối (hoặc đầu tùy bạn chọn)
+        
         recent.append(meal_summary) 
         recent = recent[-max_len:]
         return self.update_personal_info(user_id, {"recent_meals": recent})

@@ -10,17 +10,15 @@ class IngredientMatcherAgent:
     def run(self, ingredients: list, user_profile: dict = None) -> list:
         """
         Nhiệm vụ: Tìm sản phẩm thực tế cho từng nguyên liệu thô CẦN MUA.
-        Đầu vào: 
-            - ingredients: List các nguyên liệu ĐÃ LỌC bỏ đồ có sẵn.
-            - user_profile: Thông tin dị ứng để loại bỏ sản phẩm không phù hợp.
         """
         logger.info(f"[IngredientMatcherAgent] Bắt đầu tìm hàng thực tế cho: {ingredients}")
         
         user_profile = user_profile or {}
-        # Chuẩn hóa danh sách dị ứng để so khớp
         allergies = [a.lower().strip() for a in user_profile.get("allergies", []) if a]
         
         final_shopping_list = []
+        
+        seen_product_ids = set()
 
         for ingredient in ingredients:
             try:
@@ -45,13 +43,22 @@ class IngredientMatcherAgent:
                     valid_products.append(p)
 
                 if valid_products:
-                    # 3. Ưu tiên sản phẩm có giá tốt nhất (price_final)
+                    # 3. Ưu tiên sản phẩm có giá tốt nhất
                     valid_products.sort(key=lambda x: x.get("price_final", x.get("price", 999999)))
                     
-                    # 4. Lấy 1 kết quả tốt nhất để đưa vào giỏ hàng
-                    best_match = valid_products[0]
-                    best_match["raw_ingredient"] = ingredient # Lưu lại tag để check đối chiếu
-                    final_shopping_list.append(best_match)
+                    
+                    best_match = None
+                    for p in valid_products:
+                        # Dùng item_no hoặc product_id tùy theo schema của Lâm
+                        p_id = p.get("item_no") or p.get("product_id") or p.get("id")
+                        if p_id not in seen_product_ids:
+                            best_match = p
+                            seen_product_ids.add(p_id)
+                            break
+                    
+                    if best_match:
+                        best_match["raw_ingredient"] = ingredient 
+                        final_shopping_list.append(best_match)
 
             except Exception as e:
                 logger.error(f"Lỗi khi khớp nguyên liệu {ingredient}: {str(e)}")

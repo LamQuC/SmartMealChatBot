@@ -4,9 +4,11 @@ class GeneralAgent(BaseAgent):
     def run(self, user_input: str, user_info: dict = None):
         # Lọc các thông tin liên quan đến sức khỏe/mua sắm để làm context
         context = {k: v for k, v in (user_info or {}).items() if v and k in ["budget", "preferences", "allergies"]}
-
+        history = user_info.get("history", [])
         prompt = f"""
 ROLE: Bạn là chuyên gia tư vấn mua sắm WinMart & Dinh dưỡng.
+hãy dựa vào lịch sử chat và context để trả lời câu hỏi của người dùng.
+HISTORY: {history}
 CONTEXT: {context}
 
 TASK: Trả lời yêu cầu của người dùng về sản phẩm, sức khỏe hoặc nấu ăn. 

@@ -52,13 +52,14 @@ def intent_node(state: AgentState):
         "current_intent": detected_intent,
         "user_owned_ingredients": owned_items,
         "change_dish_info": change_dish or "",
-        "messages": [("system", f"Intent: {detected_intent} | Session Active: {current_session is not None}")],
-        "meal_plan": current_session.get("dishes", []) if current_session else [],
+        # QUAN TRỌNG: Ghi đè (override) các list này về rỗng để tránh tích tụ context cũ
+        "meal_plan": [], 
         "matched_products": [],
+        "raw_ingredients": [], 
+        "optimization_log": [],
         "total_cost": 0.0,
         "final_response": "",
-        "optimization_log": [],
-        "raw_ingredients": []
+        "messages": [("system", f"Intent: {detected_intent} | New Session Started")]
     }
 
 def meal_planner_node(state: AgentState):
@@ -143,7 +144,8 @@ def budget_optimizer_node(state: AgentState):
             # 2. Tìm hàng thay thế rẻ hơn cùng loại (category_level_5)
             alternative = repo.find_cheaper_alternative(
                 p.get("category_level_5"), 
-                p.get("price_final")
+                p.get("price_final"),
+                p.get("name")
             )
             
             if alternative:
@@ -191,24 +193,19 @@ def general_inquiry_node(state: AgentState):
     }
 
 def final_response_node(state: AgentState):
-    """Node cuối cùng: Format và trả lời cho user"""
     res = state.get("final_response", "")
     products = state.get("matched_products", [])
     logs = state.get("optimization_log", [])
     
-    # 1. Thêm log tối ưu để user biết AI đã giúp họ tiết kiệm tiền
     if logs:
         res += "\n\n**💡 Tối ưu ngân sách:**\n"
-        for log in logs:
-            res += f"- {log}\n"
+        for log in logs: res += f"- {log}\n"
     
-    # 2. Hiển thị danh sách hàng WinMart
     if products:
         res += "\n\n**🛒 Giỏ hàng WinMart dự kiến:**\n"
         for p in products:
-            res += f"- {p.get('name')}: {int(p.get('price_final', 0)):,}đ\n"
+            img_url = p.get('image', p.get('image_url', ''))
+            img_md = f"![{p.get('name')}]({img_url})" if img_url else "🖼️"
+            res += f"- {img_md} **{p.get('name')}**: {int(p.get('price_final', 0)):,}đ\n"
             
-    return {
-        "final_response": res,
-        "messages": [("assistant", res)]
-    }
+    return {"final_response": res, "messages": [("assistant", res)]}
