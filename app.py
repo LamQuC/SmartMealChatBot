@@ -33,26 +33,30 @@ if "view_mode" not in st.session_state: st.session_state.view_mode = "chat"
 if "profile_updated" not in st.session_state: st.session_state.profile_updated = False
 if "catalog_pick_item_no" not in st.session_state: st.session_state.catalog_pick_item_no = None
 
-# Tải hồ sơ từ DB
+# Tải hồ sơ từ DB (Đã loại bỏ pantry_items)
 if "user_profile" not in st.session_state:
     db_memory = memory_repo.get_user_memory(st.session_state.user_id)
     st.session_state.user_profile = db_memory.get("user_profile", {
-        "full_name": "Lâm", "budget": 200000, "persons": 2, 
-        "pantry_items": [], "allergies": [], "last_updated": None
+        "full_name": "Lâm", 
+        "budget": 200000, 
+        "persons": 2, 
+        "allergies": [], 
+        "last_updated": None
     })
 
 # --- HÀM NGHIỆP VỤ AI ---
 def trigger_meal_planning(reason: str):
-    """Gọi Worker để lên thực đơn và cập nhật trạng thái"""
+    """Gọi Worker để lên thực đơn dựa trên Profile mới (không check đồ sẵn)"""
     with st.spinner(f"AI đang {reason}..."):
+        # Gửi kèm hướng dẫn ngầm để AI tính toán mua mới toàn bộ
         result = worker.run(
             user_id=st.session_state.user_id,
-            user_input=f"Hãy {reason} dựa trên hồ sơ của tôi.",
+            user_input=f"Hãy {reason}. Lưu ý: Tính toán chi phí cho toàn bộ nguyên liệu cần dùng.",
             user_profile_from_ui=st.session_state.user_profile
         )
         st.session_state.current_meal = result
         st.session_state.messages.append({"role": "assistant", "content": result.get("final_response", "")})
-        st.session_state.profile_updated = False # Tắt flag sau khi làm mới
+        st.session_state.profile_updated = False
         st.session_state.view_mode = "chat"
         st.rerun()
 
@@ -60,7 +64,6 @@ def trigger_meal_planning(reason: str):
 with st.sidebar:
     st.header(f"👤 {st.session_state.user_profile['full_name']}")
     
-    # Khối hiển thị thông tin hồ sơ
     with st.expander("📝 Thông tin hồ sơ", expanded=True):
         p = st.session_state.user_profile
         st.write(f"**Ngân sách:** {p['budget']:,}đ")
@@ -72,7 +75,6 @@ with st.sidebar:
 
     st.divider()
 
-    # NÚT TẠO / LÀM MỚI (Hiện khi có thay đổi hoặc chưa có meal)
     if st.session_state.profile_updated or not st.session_state.current_meal:
         btn_label = "🍽️ LÀM MỚI THỰC ĐƠN" if st.session_state.current_meal else "🍽️ TẠO BỮA ĂN ĐẦU TIÊN"
         if st.button(btn_label, type="primary", use_container_width=True):
@@ -93,7 +95,7 @@ with st.sidebar:
 
 # --- NỘI DUNG CHÍNH ---
 
-# 1. MÀN HÌNH SETUP (Khi bấm Sửa hồ sơ)
+# 1. MÀN HÌNH SETUP (Loại bỏ Multiselect Gia vị/Đồ có sẵn)
 if st.session_state.view_mode == "setup":
     st.subheader("Cập nhật hồ sơ nấu ăn")
     prof = st.session_state.user_profile
@@ -102,38 +104,41 @@ if st.session_state.view_mode == "setup":
         with c1:
             name = st.text_input("Tên", value=prof['full_name'])
             budget = st.number_input("Ngân sách (VNĐ)", value=int(prof['budget']), step=10000)
+            
         with c2:
             persons = st.number_input("Số người", min_value=1, value=int(prof['persons']))
-            pantry_opts = product_repo.get_unique_categories()
-            selected_pantry = st.multiselect("Gia vị có sẵn", options=pantry_opts, 
-                                             default=[x for x in prof['pantry_items'] if x in pantry_opts])
-        
+            # KHÔNG CÒN PHẦN CHỌN PANTRY Ở ĐÂY
+            st.info("💡 AI sẽ tự động gợi ý danh sách mua sắm đầy đủ cho các món ăn.")
+        prefs_str = st.text_area("Sở thích ăn uống (VD: đồ Hàn, ít dầu mỡ, thích ăn cay...)", 
+                             value=", ".join(prof.get("preferences", [])))
         allergies_str = st.text_area("Dị ứng (phân cách bằng dấu phẩy)", value=", ".join(prof['allergies']))
         
         if st.form_submit_button("LƯU THÔNG TIN"):
             updated_profile = {
-                "full_name": name, "budget": budget, "persons": persons,
-                "pantry_items": selected_pantry,
+                "full_name": name, 
+                "budget": budget, 
+                "persons": persons,
                 "allergies": [a.strip() for a in allergies_str.split(",") if a.strip()],
+                "preferences": [p.strip() for p in prefs_str.split(",") if p.strip()],
                 "last_updated": datetime.now().isoformat()
             }
             st.session_state.user_profile = updated_profile
             memory_repo.upsert_user_profile(st.session_state.user_id, {"user_profile": updated_profile})
             
-            st.session_state.profile_updated = True # Bật flag để hiện nút đỏ ở sidebar
+            st.session_state.profile_updated = True 
             st.session_state.view_mode = "chat"
-            st.success("Đã lưu! Hãy bấm nút 'Làm mới thực đơn' ở Sidebar để AI tính toán lại.")
+            st.success("Đã lưu! Hãy bấm nút 'Làm mới thực đơn' ở Sidebar.")
             st.rerun()
 
 # 2. MÀN HÌNH CHAT
 elif st.session_state.view_mode == "chat":
-    # Logic 12h: Tự động cập nhật nếu để quá lâu sau khi sửa profile
+    # Logic 12h
     if st.session_state.profile_updated and st.session_state.user_profile.get("last_updated"):
         last_ts = datetime.fromisoformat(st.session_state.user_profile["last_updated"])
         if datetime.now() > last_ts + timedelta(hours=12):
-            trigger_meal_planning("tự động cập nhật thực đơn (quá 12h)")
+            trigger_meal_planning("tự động cập nhật thực đơn")
 
-    # Widget hiển thị thực đơn
+    # Widget thực đơn
     if st.session_state.current_meal:
         m = st.session_state.current_meal
         with st.container(border=True):
@@ -144,19 +149,18 @@ elif st.session_state.view_mode == "chat":
                 cols[i].success(f"**{d_name}**")
             st.caption(f"💰 Tổng chi phí dự kiến: {int(m.get('total_cost', 0)):,}đ")
 
-    # Chat history
+    # Chat
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]): st.markdown(msg["content"], unsafe_allow_html=True)
 
-    if prompt := st.chat_input("Hỏi AI (đổi món, hỏi cách làm...)"):
+    if prompt := st.chat_input("Hỏi AI..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
         with st.chat_message("assistant"):
-            with st.spinner("AI đang trả lời..."):
-                result = worker.run(st.session_state.user_id, prompt, st.session_state.user_profile)
-                content = result.get("final_response", "")
-                st.markdown(content, unsafe_allow_html=True)
-                st.session_state.messages.append({"role": "assistant", "content": content})
+            result = worker.run(st.session_state.user_id, prompt, st.session_state.user_profile)
+            content = result.get("final_response", "")
+            st.markdown(content, unsafe_allow_html=True)
+            st.session_state.messages.append({"role": "assistant", "content": content})
         st.rerun()
 
 # 3. MÀN HÌNH CATALOG
@@ -166,7 +170,6 @@ elif st.session_state.view_mode == "catalog":
     if main_cats:
         selected_cat = st.selectbox("Chọn danh mục hàng", main_cats)
         
-        # Hiển thị chi tiết nếu có
         if st.session_state.catalog_pick_item_no:
             detail = product_repo.find_by_item_no(st.session_state.catalog_pick_item_no)
             if detail:
@@ -179,7 +182,6 @@ elif st.session_state.view_mode == "catalog":
                         st.session_state.catalog_pick_item_no = None
                         st.rerun()
         
-        # Grid sản phẩm
         prods = product_repo.get_products_by_main_category(selected_cat)
         grid = st.columns(4)
         for idx, p in enumerate(prods):

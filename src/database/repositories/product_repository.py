@@ -1,6 +1,5 @@
 from pymongo import UpdateOne
 import logging
-
 from src.core.catalog_constants import MAIN_CATEGORY_EXCLUDE_FROM_MEAL_SHOPPING
 
 class ProductRepository:
@@ -22,77 +21,73 @@ class ProductRepository:
     def find_by_name(self, name):
         return self.collection.find_one({"name": name})
 
-    def get_unique_categories(self):
+    # --- SỬA TẠI ĐÂY: Trả về category tổng quát, không chỉ mỗi Gia vị ---
+    def get_unique_categories(self, main_category=None):
+        """Lấy danh sách category_level_5. Nếu có main_category thì lọc theo đó."""
         try:
-            query_filter = {
-                "main_category": "Gia vị",
-                "category_level_5": {"$ne": None, "$ne": ""}
-            }
+            query_filter = {"category_level_5": {"$ne": None, "$ne": ""}}
+            if main_category:
+                query_filter["main_category"] = main_category
+                
             categories = self.collection.distinct("category_level_5", query_filter)
-            clean_categories = sorted([str(c).strip() for c in categories if c])
-            return clean_categories
+            return sorted([str(c).strip() for c in categories if c])
         except Exception as e:
             logging.error(f"❌ Lỗi truy vấn MongoDB: {e}")
-            return ["Nước mắm", "Nước tương", "Dầu ăn", "Đường", "Hạt nêm"]
+            return []
 
     def find_cheaper_alternative(self, category_level_5, current_price, original_name=""):
         """
-        Tìm sản phẩm cùng loại nhưng giá thấp hơn.
-        SỬA TẠI ĐÂY: Thêm lọc theo tên để tránh đổi Thịt thành Cháo gói.
+        Tìm sản phẩm rẻ hơn cùng loại và cùng từ khóa chính.
         """
-        # 1. Tách từ khóa quan trọng nhất từ tên gốc (ví dụ: "Thịt", "Trứng", "Cần tây")
-        # Đơn giản nhất là lấy từ đầu tiên hoặc từ quan trọng
-        keyword = original_name.split()[0] if original_name else ""
-
+        # Tách keyword thông minh hơn: Bỏ qua các từ định lượng/quảng cáo
+        words = original_name.split()
+        stopwords = ["combo", "gói", "túi", "hộp", "khay", "bịch", "vỉ", "set", "siêu", "rẻ"]
+        
+        keyword = ""
+        for w in words:
+            if w.lower() not in stopwords:
+                keyword = w
+                break
+        
         query = {
             "category_level_5": category_level_5,
-            "price_final": {"$lt": current_price}
+            "price_final": {"$lt": current_price},
+            "price_final": {"$gt": 0} # Đảm bảo không lấy hàng hết giá hoặc lỗi
         }
-        
         
         if keyword:
             query["name"] = {"$regex": keyword, "$options": "i"}
 
         return self.collection.find_one(
             query, 
-            sort=[("price_final", 1)]
+            sort=[("price_final", 1)] # Lấy thằng rẻ nhất đứng đầu
         )
+
     def get_products_by_main_category(self, main_category: str):
-        """Lấy toàn bộ sản phẩm thuộc một danh mục chính (trường đã chuẩn hoá từ cleaner)."""
         projection = {
-            "item_no": 1,
-            "name": 1,
-            "price_final": 1,
-            "price_original": 1,
-            "image_url": 1,
-            "images": 1,
-            "main_category": 1,
-            "brand": 1,
-            "short_description": 1,
-            "thumbnail": 1,
+            "item_no": 1, "name": 1, "price_final": 1, "price_original": 1,
+            "image_url": 1, "images": 1, "main_category": 1, "brand": 1,
+            "short_description": 1, "thumbnail": 1,
         }
         return list(self.collection.find({"main_category": main_category}, projection))
 
     def find_by_item_no(self, item_no: str):
-        """Một sản phẩm đầy đủ trường để hiển thị chi tiết."""
-        if not item_no:
-            return None
+        if not item_no: return None
         return self.collection.find_one({"item_no": item_no})
 
     def get_all_main_categories(self):
-        """Lấy danh sách các main_category hiện có trong DB (sắp xếp để dùng dropdown)."""
         cats = self.collection.distinct("main_category")
         return sorted([c for c in cats if c])
+
     def search_products(self, query: str, limit: int = 5):
+        """Tìm kiếm hàng hóa để AI match nguyên liệu"""
         excluded_cats = list(MAIN_CATEGORY_EXCLUDE_FROM_MEAL_SHOPPING)
 
+        # Ưu tiên tìm hàng có giá và không nằm trong danh sách loại trừ (như gia vị lẻ)
         search_filter = {
-            "$and": [
-                {"name": {"$regex": query, "$options": "i"}},
-                {"main_category": {"$nin": excluded_cats}},
-                {"price_final": {"$gt": 0}},
-            ]
+            "name": {"$regex": query, "$options": "i"},
+            "main_category": {"$nin": excluded_cats},
+            "price_final": {"$gt": 0},
         }
         
-        # Thực hiện truy vấn
         return list(self.collection.find(search_filter).limit(limit))
