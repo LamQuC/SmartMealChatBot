@@ -1,15 +1,16 @@
-from src.core.logger import logger
-import google.generativeai as genai
-from dotenv import load_dotenv
-import os
 import json
-load_dotenv()
+
+import google.generativeai as genai
+
+from src.core.logger import logger
+from src.core.settings import get_settings
+
 
 class LLMClient:
     def __init__(self):
-        api_key = os.getenv("GOOGLE_API_KEY")
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-2.5-flash")
+        s = get_settings()
+        genai.configure(api_key=s.google_api_key)
+        self.model = genai.GenerativeModel(s.gemini_model)
 
     def __call__(self, prompt: str, expect_json: bool = True):
         logger.info(f"LLM Prompt: {prompt}")

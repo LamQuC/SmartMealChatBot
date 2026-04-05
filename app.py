@@ -1,11 +1,18 @@
 import streamlit as st
 import uuid
-from src.graph.worker import GraphWorker
-from src.database.mongo_client import get_mongo_client
-from src.database.repositories.product_repository import ProductRepository # Import class của bạn
 
-# 1. CẤU HÌNH TRANG
-st.set_page_config(page_title="SmartMeal WinMart AI", page_icon="🥗", layout="wide")
+from src.core.settings import get_settings
+from src.database.mongo_client import get_mongo_client
+from src.database.repositories.product_repository import ProductRepository
+from src.graph.worker import GraphWorker
+
+# 1. CẤU HÌNH TRANG (configs/app.json + .env)
+_ui = get_settings()
+st.set_page_config(
+    page_title=_ui.streamlit_page_title,
+    page_icon=_ui.streamlit_page_icon,
+    layout=_ui.streamlit_layout,
+)
 
 # 2. KHỞI TẠO RESOURCES (DB & REPO)
 @st.cache_resource

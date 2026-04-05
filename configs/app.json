@@ -1,0 +1,17 @@
+{
+  "streamlit": {
+    "page_title": "SmartMeal WinMart AI",
+    "page_icon": "🥗",
+    "layout": "wide"
+  },
+  "llm": {
+    "gemini_model": "gemini-2.5-flash"
+  },
+  "embeddings": {
+    "sentence_transformer_model": "AITeamVN/Vietnamese_Embedding"
+  },
+  "mongo": {
+    "default_uri": "mongodb://localhost:27017/",
+    "default_db_name": "smart_meal_db"
+  }
+}

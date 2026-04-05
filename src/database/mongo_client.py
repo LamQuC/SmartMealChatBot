@@ -1,13 +1,13 @@
 from pymongo import MongoClient
-import os
-from dotenv import load_dotenv
 
-load_dotenv()
+from src.core.settings import get_settings
+
 
 def get_mongo_client():
-    """Khởi tạo kết nối tới MongoDB dựa trên biến môi trường"""
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-    db_name = os.getenv("MONGO_DB_NAME", "smart_meal_db")
+    """Khởi tạo kết nối tới MongoDB dựa trên configs/app.json và biến môi trường."""
+    s = get_settings()
+    mongo_uri = s.mongo_uri
+    db_name = s.mongo_db_name
     client = MongoClient(mongo_uri)
     return client[db_name]
 

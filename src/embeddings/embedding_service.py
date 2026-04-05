@@ -1,9 +1,14 @@
 # This is a placeholder implementation of the EmbeddingService.
 
-from sentence_transformers import SentenceTransformer   
+from sentence_transformers import SentenceTransformer
+
+from src.core.settings import get_settings
+
+
 class EmbeddingService:
     def __init__(self):
-        self.models = SentenceTransformer('AITeamVN/Vietnamese_Embedding')
+        s = get_settings()
+        self.models = SentenceTransformer(s.embedding_model)
 
     def build_search_text(self, product):
         fields = [
