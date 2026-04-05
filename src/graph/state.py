@@ -14,7 +14,8 @@ class UserProfile(TypedDict):
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
     user_input: str
-    
+    optimization_log: List[str] # Log các bước tối ưu hóa đã thực hiện
+    user_id: str
     # 1. Dữ liệu từ Database nạp vào
     user_profile: UserProfile
     recent_meals: List[List[str]]  # Lịch sử 7 bữa đã CHỐT
@@ -22,6 +23,7 @@ class AgentState(TypedDict):
     
     # 2. Input từ logic xử lý
     user_owned_ingredients: List[str] # Đồ user vừa báo "nhà còn"
+    change_dish_info: str # Thông tin từ IntentAgent về món cần đổi
     
     # 3. Kết quả output
     current_intent: str

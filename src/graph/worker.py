@@ -62,18 +62,23 @@ class GraphWorker:
         """
         config = {"configurable": {"thread_id": user_id}}
         
-        # Khởi tạo state khớp với src/graph/state.py mới
+        # Khởi tạo state khớp với src/graph/state.py mới - TẤT CẢ các fields cần thiết
         initial_state = {
             "user_id": user_id,
             "user_input": user_input,
             "messages": [],
             "user_profile": user_profile_from_ui or {}, # Ưu tiên profile mới nhất từ UI
-            "user_owned_ingredients": [], # Sẽ được IntentAgent lấp đầy nếu user báo "có sẵn"
+            "recent_meals": [],  # Sẽ được populate từ intent_node
+            "current_session": None,  # Sẽ check 12h logic trong intent_node
+            "user_owned_ingredients": [], # Sẽ được populate từ IntentAgent entities
+            "change_dish_info": "",  # Sẽ được populate từ IntentAgent entities
+            "current_intent": "general_inquiry",  # Default, sẽ được update từ intent_node
             "meal_plan": [],
             "raw_ingredients": [],
             "matched_products": [],
             "total_cost": 0.0,
-            "final_response": ""
+            "final_response": "",
+            "optimization_log": []
         }
         
         return self.app.invoke(initial_state, config=config)

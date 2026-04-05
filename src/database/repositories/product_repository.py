@@ -46,3 +46,9 @@ class ProductRepository:
             logging.error(f"❌ Lỗi truy vấn MongoDB: {e}")
             # Trả về danh sách mặc định để UI không crash
             return ["Nước mắm", "Nước tương", "Dầu ăn", "Muối", "Đường", "Hạt nêm"]
+    def find_cheaper_alternative(self, category_level_5, current_price):
+        """Tìm sản phẩm cùng loại nhưng giá thấp hơn giá hiện tại"""
+        return self.collection.find_one({
+            "category_level_5": category_level_5,
+            "price_final": {"$lt": current_price}
+        }, sort=[("price_final", 1)])
