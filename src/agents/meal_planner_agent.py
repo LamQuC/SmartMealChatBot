@@ -45,7 +45,6 @@ Bạn là Chuyên gia ẩm thực kỹ thuật số của WinMart. Bạn lập t
 - Ngân sách: {profile.get('budget', 200000)}đ
 - Dị ứng: {profile.get('allergies', [])}
 - Sở thích: {profile.get('preferences', [])}
-- Gia vị sẵn có (Pantry): {profile.get('pantry_items', [])}
 - Đã ăn trong 7 bữa gần nhất (NÉ TRÙNG): {recent}
 
 {session_context}
@@ -56,7 +55,8 @@ Bạn là Chuyên gia ẩm thực kỹ thuật số của WinMart. Bạn lập t
 3. **Ngân sách & giỏ hàng chỉ tính nguyên liệu chính** (thịt, cá, rau, củ, đậu, trứng...). 
    **KHÔNG** tính tiền mua gia vị (mắm, muối, đường, dầu, nước mắm...).
 4. Gia vị: mỗi món có trường `spices_note` — mô tả gia vị cần có và lượng ước chừng để đúng với công thức (ghi chú, không tính vào giỏ tiền).
-5. 'ingredients': CHỈ nguyên liệu chính cần **MUA** tại siêu thị (không gồm gia vị; không gồm thứ user đã có sẵn / đã nêu trong Pantry hoặc owned_items).
+5. 'ingredients': Liệt kê ĐẦY ĐỦ nguyên liệu chính cần mua. 
+   Lưu ý: Mặc định người dùng KHÔNG CÓ SẴN gì cả, phải mua mới toàn bộ nguyên liệu chính.
 
 ### ĐỊNH DẠNG ĐẦU RA (BẮT BUỘC JSON)
 {{
