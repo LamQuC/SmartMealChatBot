@@ -132,35 +132,81 @@ if st.session_state.view_mode == "setup":
 
 # 2. MÀN HÌNH CHAT
 elif st.session_state.view_mode == "chat":
-    # Logic 12h
+    # Logic tự động cập nhật thực đơn sau 12h
     if st.session_state.profile_updated and st.session_state.user_profile.get("last_updated"):
         last_ts = datetime.fromisoformat(st.session_state.user_profile["last_updated"])
         if datetime.now() > last_ts + timedelta(hours=12):
             trigger_meal_planning("tự động cập nhật thực đơn")
 
-    # Widget thực đơn
+    # --- UI THỰC ĐƠN ĐANG ÁP DỤNG (Dùng Tab & Columns cho đẹp) ---
     if st.session_state.current_meal:
         m = st.session_state.current_meal
+        ui_data = m.get("ui_metadata", {}) # Lấy data cấu trúc từ final_node
+        
         with st.container(border=True):
-            st.markdown("### 🍴 Thực đơn đang áp dụng")
-            cols = st.columns(len(m.get("meal_plan", [])) or 1)
-            for i, dish in enumerate(m.get("meal_plan", [])):
-                d_name = dish.get("name") if isinstance(dish, dict) else dish
-                cols[i].success(f"**{d_name}**")
-            st.caption(f"💰 Tổng chi phí dự kiến: {int(m.get('total_cost', 0)):,}đ")
+            st.markdown("### 🍴 Thực đơn chi tiết & Đi chợ")
+            
+            # Tách biệt Cách nấu và Giỏ hàng bằng Tabs
+            tab_recipe, tab_shop = st.tabs(["👨‍🍳 Công thức & Cách nấu", "🛒 Danh sách mua sắm WinMart"])
+            
+            with tab_recipe:
+                meal_plan = ui_data.get("dishes") or m.get("meal_plan", [])
+                cols = st.columns(len(meal_plan) if meal_plan else 1)
+                for i, dish in enumerate(meal_plan):
+                    with cols[i]:
+                        with st.container(border=True):
+                            d_name = dish.get("name") if isinstance(dish, dict) else dish
+                            st.success(f"**{d_name}**")
+                            # Hiển thị Công thức và Gia vị nếu có
+                            if isinstance(dish, dict):
+                                st.caption(f"🧂 **Gia vị:** {dish.get('spices_note', 'Cơ bản')}")
+                                with st.expander("Xem cách chế biến"):
+                                    st.write(dish.get("recipe", "Đang cập nhật..."))
+            
+            with tab_shop:
+                cart_items = ui_data.get("cart") or m.get("matched_products", [])
+                c1, c2 = st.columns([2, 1])
+                with c1:
+                    # Hiển thị danh sách hàng theo dạng Card ngang
+                    for p in cart_items:
+                        with st.container(border=True):
+                            col_img, col_txt = st.columns([1, 4])
+                            img_url = get_thumb(p)
+                            if img_url: col_img.image(img_url, width=60)
+                            else: col_img.write("📦")
+                            
+                            col_txt.markdown(f"**{p.get('name')}**")
+                            col_txt.markdown(f"<span style='color:red'>{get_price(p):,}đ</span>", unsafe_allow_html=True)
+                
+                with c2:
+                    st.metric("Tổng chi phí", f"{int(m.get('total_cost', 0)):,}đ")
+                    budget = st.session_state.user_profile['budget']
+                    progress = min(int(m.get('total_cost', 0)) / budget, 1.0) if budget > 0 else 0
+                    st.progress(progress, text=f"Ngân sách: {budget:,}đ")
 
-    # Chat
+    st.divider()
+
+    # --- LOG CHAT ---
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"], unsafe_allow_html=True)
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"], unsafe_allow_html=True)
 
-    if prompt := st.chat_input("Hỏi AI..."):
+    if prompt := st.chat_input("Hỏi AI về thực đơn hoặc yêu cầu đổi món..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
+        with st.chat_message("user"):
+            st.markdown(prompt)
+            
         with st.chat_message("assistant"):
-            result = worker.run(st.session_state.user_id, prompt, st.session_state.user_profile)
-            content = result.get("final_response", "")
-            st.markdown(content, unsafe_allow_html=True)
-            st.session_state.messages.append({"role": "assistant", "content": content})
+            with st.spinner("AI đang xử lý..."):
+                result = worker.run(st.session_state.user_id, prompt, st.session_state.user_profile)
+                content = result.get("final_response", "")
+                
+                # Cập nhật meal mới vào session nếu có (cho trường hợp đổi món)
+                if result.get("meal_plan"):
+                    st.session_state.current_meal = result
+                
+                st.markdown(content, unsafe_allow_html=True)
+                st.session_state.messages.append({"role": "assistant", "content": content})
         st.rerun()
 
 # 3. MÀN HÌNH CATALOG
