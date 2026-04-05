@@ -7,7 +7,7 @@ from src.graph.worker import GraphWorker
 
 # --- CẤU HÌNH ---
 CATALOG_SIDEBAR_BUTTON_LABEL = "Xem hàng hoá WinMart"
-
+FIXED_USER = "Quả Quýt"
 st.set_page_config(page_title="SmartMeal AI", page_icon="🥗", layout="wide")
 
 @st.cache_resource
@@ -26,7 +26,7 @@ def get_price(p: dict) -> int:
     return int(p.get("price_final") or p.get("salePrice") or p.get("price") or 0)
 
 # --- SESSION STATE ---
-if "user_id" not in st.session_state: st.session_state.user_id = "lam_dev_01"
+if "user_id" not in st.session_state: st.session_state.user_id = FIXED_USER
 if "messages" not in st.session_state: st.session_state.messages = []
 if "current_meal" not in st.session_state: st.session_state.current_meal = None
 if "view_mode" not in st.session_state: st.session_state.view_mode = "chat"
@@ -191,6 +191,7 @@ elif st.session_state.view_mode == "chat":
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"], unsafe_allow_html=True)
 
+
     if prompt := st.chat_input("Hỏi AI về thực đơn hoặc yêu cầu đổi món..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -198,15 +199,24 @@ elif st.session_state.view_mode == "chat":
             
         with st.chat_message("assistant"):
             with st.spinner("AI đang xử lý..."):
-                result = worker.run(st.session_state.user_id, prompt, st.session_state.user_profile)
+                # 2. Gửi FIXED_USER_ID thay vì dùng session_state biến thiên
+                result = worker.run(
+                    FIXED_USER, 
+                    prompt, 
+                    st.session_state.user_profile
+                )
+                
                 content = result.get("final_response", "")
                 
-                # Cập nhật meal mới vào session nếu có (cho trường hợp đổi món)
-                if result.get("meal_plan"):
+                # 3. Cập nhật meal mới vào session (Cực kỳ quan trọng để UI Render lại Tabs/Cards)
+                # Kiểm tra cả meal_plan hoặc ui_data để đảm bảo không bỏ lỡ dữ liệu mới
+                if result.get("meal_plan") or result.get("ui_data"):
                     st.session_state.current_meal = result
                 
                 st.markdown(content, unsafe_allow_html=True)
                 st.session_state.messages.append({"role": "assistant", "content": content})
+        
+        # 4. Rerun để cập nhật lại Widget Thực đơn ở phía trên màn hình chat
         st.rerun()
 
 # 3. MÀN HÌNH CATALOG
