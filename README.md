@@ -280,18 +280,6 @@ llm:
   api_key: "${GEMINI_API_KEY}"
 ```
 
-## 🚢 Deployment
-
-### Với Docker
-```bash
-docker-compose up -d
-```
-
-### Với Streamlit Cloud
-```bash
-streamlit deploy
-```
-
 ## 📚 Các Notebook Hữu Ích
 
 - **crawl_data.ipynb**: Hướng dẫn crawl dữ liệu từ WinMart
@@ -304,15 +292,12 @@ streamlit deploy
 - Gợi ý công thức nấu ăn
 - Trả lời câu hỏi về dinh dưỡng
 
-## 📜 License
-
-MIT License - Xem [LICENSE](LICENSE) để chi tiết
 
 ## 📧 Liên Hệ
 
-- **Author**: Lâm Dev
-- **Email**: you@example.com
-- **GitHub**: [repository-url]
+- **Author**: Lâm 
+- **Email**: vlam711003@gmail.com
+- **GitHub**: [https://github.com/LamQuC/SmartMealChatBot]
 
 ---
 
