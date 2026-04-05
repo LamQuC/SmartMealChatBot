@@ -8,6 +8,13 @@ from src.graph.worker import GraphWorker
 # Đồng bộ với src/graph/nodes.py (intent product_browsing)
 CATALOG_SIDEBAR_BUTTON_LABEL = "Xem hàng hoá WinMart"
 
+# Gửi vào graph — IntentAgent sẽ nhận meal_planning
+MEAL_PLAN_LLM_PROMPT = (
+    "Hãy lên thực đơn 3 món: 1 món mặn (protein), 1 món xào hoặc rau, 1 món canh, "
+    "phù hợp ngân sách nguyên liệu chính, số người, dị ứng và hồ sơ hiện tại. "
+    "Chỉ tính tiền phần nguyên liệu chính cần mua; gia vị chỉ ghi trong spices_note từng món."
+)
+
 st.set_page_config(
     page_title="SmartMeal AI - WinMart Assistant",
     page_icon="🥗",
@@ -78,6 +85,20 @@ def product_item_no(p: dict) -> str:
     return str(p.get("item_no") or p.get("itemNo") or "")
 
 
+def run_meal_planning_worker(chat_user_label: str, prompt: str | None = None) -> None:
+    """Chạy pipeline thực đơn (planner → matcher → budget) và cập nhật chat + current_meal."""
+    result = worker.run(
+        user_id=st.session_state.user_id,
+        user_input=prompt or MEAL_PLAN_LLM_PROMPT,
+        user_profile_from_ui=st.session_state.user_profile,
+    )
+    st.session_state.current_meal = result
+    st.session_state.messages.append({"role": "user", "content": chat_user_label})
+    st.session_state.messages.append(
+        {"role": "assistant", "content": result.get("final_response", "")}
+    )
+
+
 # Session state
 if "user_id" not in st.session_state:
     st.session_state.user_id = "lam_dev_01"
@@ -104,6 +125,10 @@ if "view_mode" not in st.session_state:
     st.session_state.view_mode = "chat"
 if "catalog_pick_item_no" not in st.session_state:
     st.session_state.catalog_pick_item_no = None
+if "post_save_meal_choice_pending" not in st.session_state:
+    st.session_state.post_save_meal_choice_pending = False
+if "launch_meal_next_run" not in st.session_state:
+    st.session_state.launch_meal_next_run = False
 
 prof = st.session_state.user_profile
 
@@ -147,13 +172,19 @@ with st.sidebar:
             memory_repo.upsert_user_profile(
                 st.session_state.user_id, {"user_profile": updated_profile}
             )
-            st.success("Đã lưu hồ sơ.")
+            st.session_state.post_save_meal_choice_pending = True
+            st.session_state.view_mode = "chat"
             st.rerun()
 
     st.divider()
     st.subheader("Điều hướng")
     if st.button("💬 Chat AI", use_container_width=True):
         st.session_state.view_mode = "chat"
+        st.rerun()
+    if st.button("🍽️ Tạo / làm mới thực đơn", use_container_width=True):
+        st.session_state.view_mode = "chat"
+        st.session_state.post_save_meal_choice_pending = False
+        st.session_state.launch_meal_next_run = True
         st.rerun()
     if st.button(f"📦 {CATALOG_SIDEBAR_BUTTON_LABEL}", use_container_width=True):
         st.session_state.view_mode = "catalog"
@@ -163,11 +194,39 @@ with st.sidebar:
     if st.button("🗑️ Xóa lịch sử chat"):
         st.session_state.messages = []
         st.session_state.current_meal = None
+        st.session_state.post_save_meal_choice_pending = False
         st.rerun()
 
 st.title("🥗 SmartMeal Assistant")
 
 if st.session_state.view_mode == "chat":
+    if st.session_state.launch_meal_next_run:
+        st.session_state.launch_meal_next_run = False
+        st.session_state.post_save_meal_choice_pending = False
+        with st.spinner("Đang lên thực đơn..."):
+            run_meal_planning_worker("🍽️ Tạo / làm mới thực đơn theo hồ sơ")
+        st.rerun()
+
+    if st.session_state.post_save_meal_choice_pending:
+        st.info(
+            "**Hồ sơ vừa được lưu vào MongoDB.** "
+            "Bạn muốn giữ thực đơn hiện tại hay gợi ý lại theo hồ sơ mới?"
+        )
+        c_keep, c_refresh = st.columns(2)
+        with c_keep:
+            if st.button("Giữ nguyên thực đơn hiện tại", use_container_width=True):
+                st.session_state.post_save_meal_choice_pending = False
+                st.rerun()
+        with c_refresh:
+            if st.button("Gợi ý lại thực đơn", use_container_width=True):
+                st.session_state.post_save_meal_choice_pending = False
+                with st.spinner("Đang gợi ý lại thực đơn..."):
+                    run_meal_planning_worker(
+                        "Gợi ý lại thực đơn sau khi cập nhật hồ sơ"
+                    )
+                st.rerun()
+        st.divider()
+
     m = st.session_state.current_meal
     if m and m.get("meal_plan"):
         st.subheader("🍴 Thực đơn")
