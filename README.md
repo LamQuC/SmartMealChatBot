@@ -2,8 +2,15 @@
 
 Một ứng dụng chatbot AI thông minh để lập kế hoạch bữa ăn và tìm kiếm sản phẩm từ WinMart, được hỗ trợ bởi Google Gemini LLM và công nghệ vector search tiên tiến.
 
+<<<<<<< Updated upstream
 ![Demo](demo/image.png)
 
+=======
+### Shop check
+![Demo](demo/shopcheck.png)
+### User's Infor
+![Demo](demo/infor.png)
+>>>>>>> Stashed changes
 ## ✨ Tính Năng Chính
 
 - 🤖 **Chatbot Thông Minh**: Tương tác tự nhiên qua Gemini LLM
