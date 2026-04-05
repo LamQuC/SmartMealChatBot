@@ -60,7 +60,7 @@ class GraphWorker:
         """
         user_profile_from_ui: Đây là dữ liệu lấy trực tiếp từ Form Streamlit của Lam
         """
-        config = {"configurable": {"thread_id": user_id}}
+        config = {"configurable": {"thread_id": "single_user_thread"}}
         
         # Khởi tạo state khớp với src/graph/state.py mới - TẤT CẢ các fields cần thiết
         initial_state = {

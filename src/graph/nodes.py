@@ -24,7 +24,7 @@ memory_repo = MemoryRepository()
 
 def intent_node(state: AgentState):
     """Node điều hướng: Nhận diện Intent & loại bỏ logic Pantry"""
-    user_id = state.get("user_id", "lam_ai_eng")
+    user_id = state.get("user_id") or "Quả Quýt"
     user_input = state["user_input"]
     
     db_memory = memory_repo.get_user_memory(user_id)
@@ -78,72 +78,81 @@ def _normalize_meal_dishes(raw_dishes: list, fallback_spices: list | None) -> li
     return out
 
 def meal_planner_node(state: AgentState):
-    """Lên thực đơn: Thông minh hơn khi nhận tín hiệu từ kho hàng"""
     try:
         agent = MealPlannerAgent(llm)
         is_rethink = state.get("is_rethink", False)
         
-        # Tạo chỉ thị ép AI thay đổi nếu thực đơn cũ không có hàng
+        # Chỉ thị ép AI đổi món nếu rơi vào pha Rethink
         instruction = " (Lưu ý: Mua mới 100%. "
         if is_rethink:
-            instruction += "QUAN TRỌNG: Các món trước đó không tìm thấy nguyên liệu tại WinMart, hãy gợi ý 3 món khác dùng nguyên liệu phổ biến hơn. "
-        instruction += "Trả về công thức nấu ăn chi tiết từng bước)."
+            instruction += "QUAN TRỌNG: Các món trước đó không tìm thấy nguyên liệu tại WinMart, hãy gợi ý món khác dùng nguyên liệu phổ biến hơn. "
+        instruction += "Yêu cầu tách riêng 'fresh_aromatics' cho hành, tỏi, ớt và 'ingredients' cho thịt, rau, củ)."
 
         custom_input = state["user_input"] + instruction
         result = agent.run(custom_input, state)
         
-        # Giữ nguyên cấu trúc dishes bao gồm recipe và spices_note
         dishes = _normalize_meal_dishes(result.get("dishes", []), result.get("spices"))
 
         return {
             "meal_plan": dishes,
             "raw_ingredients": result.get("ingredients", []),
-            "is_rethink": False, # Reset flag sau khi lập kế hoạch mới
+            "fresh_aromatics": result.get("fresh_aromatics", []), # QUAN TRỌNG: Lưu vào state
+            "is_rethink": False, 
             "final_response": "", 
             "matched_products": [], 
             "total_cost": 0.0, 
-            "optimization_log": [] # Khởi tạo log trống
+            "optimization_log": []
         }
     except Exception as e:
         logger.error(f"Lỗi Meal Planner: {e}")
-        return {
-            "final_response": "Trục trặc khi lên món. Thử lại nhé!", 
-            "meal_plan": [], 
-            "raw_ingredients": [],
-            "optimization_log": []
-        }
+        return {"final_response": "Trục trặc khi lên món. Thử lại nhé!", "optimization_log": []}
 
 def ingredient_matching_node(state: AgentState):
-    """Match hàng WinMart: Kiểm tra tính khả thi và Reset log tối ưu"""
-    ingredients_to_buy = state.get("raw_ingredients", [])
+    main_ingredients = state.get("raw_ingredients", [])
+    fresh_aromatics = state.get("fresh_aromatics", [])
     profile = state.get("user_profile", {})
 
     agent = IngredientMatcherAgent()
-    matched_list = agent.run(ingredients_to_buy, profile)
+    # Match toàn bộ để kiểm tra hàng WinMart
+    all_to_buy = main_ingredients + fresh_aromatics
+    matched_list = agent.run(all_to_buy, profile)
 
-    # --- LOGIC RETHINK (Bảo vệ tính nhất quán) ---
-    # Nếu số lượng món khớp < 60% tổng số nguyên liệu chính cần mua
-    # và chưa vượt quá số lần thử (ví dụ: tối đa 1 lần tự sửa)
+    # --- LOGIC RETHINK: Chỉ áp dụng cho nguyên liệu chính ---
+    matched_names = [p.get("name", "").lower() for p in matched_list]
+    
+    # Đếm xem có bao nhiêu nguyên liệu chính THỰC SỰ tìm thấy hàng
+    main_matched_count = sum(1 for ing in main_ingredients if any(ing.lower() in name for name in matched_names))
+    
     threshold = 0.6
-    if len(ingredients_to_buy) > 0:
-        match_rate = len(matched_list) / len(ingredients_to_buy)
+    if len(main_ingredients) > 0:
+        match_rate = main_matched_count / len(main_ingredients)
         if match_rate < threshold and state.get("rethink_count", 0) < 1:
-            logger.warning(f"Rethink: Chỉ khớp {len(matched_list)}/{len(ingredients_to_buy)}. Quay lại Planner.")
+            logger.warning(f"Rethink triggered: Match hụt nguyên liệu chính ({main_matched_count}/{len(main_ingredients)})")
             return Command(
                 goto="meal_planner_node",
                 update={
                     "is_rethink": True,
                     "rethink_count": state.get("rethink_count", 0) + 1,
-                    "optimization_log": [] 
+                    "optimization_log": []
                 }
             )
 
-    # Nếu ổn, trả về kết quả và ĐẢM BẢO giữ nguyên các key của state
+    # --- LOGIC MARKET NOTE: Dành cho gia vị tươi thiếu hàng ---
+    missing_aromatics = []
+    for aromatic in fresh_aromatics:
+        if not any(aromatic.lower() in name for name in matched_names):
+            missing_aromatics.append(aromatic)
+    
+    market_note = ""
+    if missing_aromatics:
+        market_note = f"⚠️ **Lưu ý:** Hiện WinMart hết {', '.join(missing_aromatics)}. Lâm mua thêm ngoài chợ nhé!"
+
     return {
         "matched_products": matched_list,
-        "messages": [("system", f"Đã khớp {len(matched_list)} sản phẩm WinMart mới.")],
-        "total_cost": 0.0,      # Sẽ tính lại ở node Budget
-        "optimization_log": []  # Reset log để node Budget ghi mới, không bị dính log cũ
+        "market_note": market_note, # Truyền lời nhắn xuống final_node
+        "messages": [("system", f"Khớp {len(matched_list)} sp. Thiếu {len(missing_aromatics)} gia vị tươi.")],
+        "total_cost": 0.0,
+        "optimization_log": []
     }
 
 def budget_optimizer_node(state: AgentState):
@@ -200,11 +209,12 @@ def final_response_node(state: AgentState):
     res = state.get("final_response", "")
     products = state.get("matched_products", [])
     meal_plan = state.get("meal_plan", []) or []
+    market_note = state.get("market_note", "")
     budget = state.get("user_profile", {}).get("budget", 0)
     total_cost = state.get("total_cost", 0)
 
     # Xây dựng phần hiển thị Markdown (vẫn giữ để đề phòng Lâm chưa sửa app.py)
-    full_md = f"### {res}\n\n"
+    full_md = f"### {res}\n{market_note}\n\n"
     
     if meal_plan:
         full_md += "#### 👨‍🍳 Cách nấu & Công thức\n"
@@ -225,14 +235,13 @@ def final_response_node(state: AgentState):
             full_md += f"<div style='margin-bottom:10px;'>{img_html} <b>{p.get('name')}</b>: <span style='color:red;'>{p_price}</span></div>"
 
     return {
-        "final_response": full_md, # Trả về Markdown đầy đủ cả Budget + Hình ảnh
+        "final_response": full_md,
         "messages": [("assistant", full_md)],
-        # Trả về thêm metadata để Lâm làm UI Tabs/Columns bên app.py
         "ui_data": {
             "meal_plan": meal_plan,
-            "products": budget_items,
-            "total_cost": total_cost,
-            "budget": budget
+            "products": [p for p in products if not is_excluded_main_category(p.get("main_category"))],
+            "total_cost": state.get("total_cost", 0),
+            "market_note": market_note # Trả về để app.py có thể dùng st.warning()
         }
     }
 
