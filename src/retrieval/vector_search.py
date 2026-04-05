@@ -2,6 +2,7 @@ import numpy as np
 from src.embeddings.embedding_service import EmbeddingService
 from src.database.mongo_client import get_mongo_client
 from src.core.logger import logger
+from src.core.catalog_constants import is_excluded_main_category
 
 class VectorSearch:
     def __init__(self):
@@ -20,11 +21,22 @@ class VectorSearch:
             # 2. Lấy tất cả sản phẩm có embedding từ DB
             # Lưu ý: Với quy mô vừa phải, lấy về RAM xử lý bằng Numpy sẽ nhanh hơn loop từng cái
             cursor = self.collection.find(
-                {"embedding": {"$exists": True}}, 
-                {"name": 1, "price_final": 1, "main_category": 1, "thumbnail": 1, "images": 1, "brand": 1, "embedding": 1}
+                {"embedding": {"$exists": True}},
+                {
+                    "name": 1,
+                    "price_final": 1,
+                    "main_category": 1,
+                    "category_level_5": 1,
+                    "thumbnail": 1,
+                    "images": 1,
+                    "image_url": 1,
+                    "brand": 1,
+                    "item_no": 1,
+                    "embedding": 1,
+                },
             )
             
-            products = list(cursor)
+            products = [p for p in cursor if not is_excluded_main_category(p.get("main_category"))]
             if not products:
                 return []
 

@@ -18,33 +18,38 @@ class IntentAgent:
         
         # System Prompt định nghĩa các tình huống cụ thể cho luồng 12h
         prompt = f"""
-### VAI TRÒ
-Bạn là Bộ não điều hướng của hệ thống Trợ lý đi chợ WinMart. Nhiệm vụ của bạn là phân tích câu chat của người dùng để xác định họ muốn làm gì.
+        ### VAI TRÒ
+        Bạn là Bộ não điều hướng (Intent Classifier) của hệ thống Trợ lý WinMart. 
+        Nhiệm vụ: Phân tích câu chat để xác định chính xác Ý ĐỊNH của người dùng.
 
-### HỒ SƠ NGƯỜI DÙNG HIỆN TẠI
-- Tên: {user_profile.get('full_name', 'Khách')}
-- Sở thích: {user_profile.get('preferences', [])}
-- Dị ứng: {user_profile.get('allergies', [])}
+        ### CÁC LOẠI Ý ĐỊNH (INTENT) - QUAN TRỌNG:
+        1. `meal_planning`: 
+        - Lên thực đơn mới (Ví dụ: "Ăn gì bây giờ?", "Gợi ý 3 món 200k").
+        - Đổi món (Ví dụ: "Đổi thịt thành cá", "Không ăn rau muống nữa").
+        - Báo đồ có sẵn (Ví dụ: "Nhà còn trứng", "Có sẵn nước mắm rồi").
+        2. `product_browsing`: 
+        - Khi người dùng muốn xem danh sách, danh mục, hoặc hỏi WinMart có bán gì không.
+        - Ví dụ: "Xem danh mục bánh kẹo", "WinMart có bán thịt heo không?", "Check giá sữa".
+        3. `general_inquiry`: 
+        - Hỏi đáp sức khỏe, mẹo nấu ăn, dinh dưỡng hoặc tán gẫu.
+        - Ví dụ: "Nấu canh chua thế nào?", "Bị đau dạ dày nên ăn gì?", "Chào bạn".
 
-### CÁC LOẠI Ý ĐỊNH (INTENT)
-1. `meal_planning`: Khi người dùng muốn lên thực đơn mới, ĐỔI MÓN trong thực đơn hiện tại, hoặc báo đã có sẵn nguyên liệu gì đó (ví dụ: "nhà còn trứng", "đổi món cá thành thịt").
-2. `product_search`: Khi người dùng chỉ muốn tìm đích danh một mặt hàng tại WinMart (ví dụ: "tìm giá sữa bột", "bim bim bao nhiêu tiền").
-3. `general_inquiry`: Hỏi đáp về sức khỏe, nấu ăn hoặc tán gẫu (ví dụ: "cách nấu canh chua", "tôi bị đau dạ dày ăn gì").
+        ### YÊU CẦU ĐẦU RA (JSON CHUẨN)
+        {{
+        "intent": "meal_planning" | "product_browsing" | "general_inquiry",
+        "entities": {{
+            "change_dish": "tên món muốn thay thế (nếu có)",
+            "owned_items": ["danh sách nguyên liệu user báo đã có sẵn trong câu chat này"],
+            "search_keyword": "từ khóa sản phẩm nếu user hỏi đích danh (ví dụ: 'sữa bột')"
+        }},
+        "reasoning": "Giải thích ngắn gọn lý do chọn intent này"
+        }}
 
-### YÊU CẦU ĐẦU RA (JSON CHUẨN)
-{{
-  "intent": "tên_intent",
-  "entities": {{
-    "change_dish": "tên món muốn thay thế nếu có",
-    "owned_items": ["danh sách đồ dùng user báo đã có sẵn tại nhà trong câu chat"]
-  }}
-}}
+        ### USER INPUT
+        "{user_input}"
 
-### USER INPUT
-"{user_input}"
-
-### OUTPUT (CHỈ TRẢ VỀ JSON):
-"""
+        ### OUTPUT (CHỈ TRẢ VỀ JSON):
+        """
         try:
             raw_response = self.llm.call(prompt)
             # Làm sạch response để parse JSON

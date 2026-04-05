@@ -24,17 +24,24 @@ class ProductSearchTool:
                 if not isinstance(r, dict):
                     continue
 
-                formatted.append({
-                    "name": r.get("name", "Không tên"),
-                    # Sử dụng price_final khớp với cleaner.py và Agent
-                    "price_final": r.get("price_final", 0), 
-                    "category": r.get("main_category", "Chưa phân loại"),
-                    "description": r.get("short_description", ""),
-                    "brand": r.get("brand", "N/A"),
-                    # Thêm ảnh để Agent trả về cho người dùng xem
-                    "thumbnail": r.get("thumbnail") or (r.get("images")[0] if r.get("images") else None),
-                    "item_no": r.get("item_no")
-                })
+                img = r.get("thumbnail")
+                if not img and r.get("image_url"):
+                    iu = r.get("image_url")
+                    img = iu[0] if isinstance(iu, list) and iu else iu
+                formatted.append(
+                    {
+                        "name": r.get("name", "Không tên"),
+                        "price_final": r.get("price_final", 0),
+                        "main_category": r.get("main_category", "Chưa phân loại"),
+                        "category": r.get("main_category", "Chưa phân loại"),
+                        "category_level_5": r.get("category_level_5"),
+                        "description": r.get("short_description", ""),
+                        "brand": r.get("brand", "N/A"),
+                        "thumbnail": img,
+                        "image_url": r.get("image_url"),
+                        "item_no": r.get("item_no"),
+                    }
+                )
             
             return formatted
 
