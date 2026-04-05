@@ -13,11 +13,24 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-[project.dependencies]
-python-dotenv = "*"
-google-generativeai = "*"
-pymongo = "*"
-numpy = "*"
+
+dependencies = [
+    "python-dotenv",
+    "google-generativeai",
+    "pymongo",
+    "numpy",
+    "langchain",
+    "langgraph",
+    "pyyaml",        
+    "streamlit"
+]
+
+[tool.setuptools]
+# Nếu bạn muốn đóng gói cả thư mục configs vào package
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = ["configs/*.yaml"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
